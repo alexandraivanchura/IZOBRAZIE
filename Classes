@@ -1,4 +1,4 @@
-//classes: light, camera(+экран), ray, opt prop, geometry -> scene -> render
+///classes: light, camera(+экран), ray, opt prop, geometry -> scene -> render
 
 class ray { // класс луча
 public:
@@ -247,16 +247,18 @@ public:
                         ray li = ray(l[k].position, in.point);
                         point_and_normal li_in = g.Intersection(li);
 
-                        float x1 = round(in.point.x * 10000) / 10000;
-                        float y1 = round(in.point.y * 10000) / 10000;
-                        float z1 = round(in.point.z * 10000) / 10000;
+                        int accuracy = 100;
 
-                        float x2 = round(li_in.point.x * 10000) / 10000;
-                        float y2 = round(li_in.point.y * 10000) / 10000;
-                        float z2 = round(li_in.point.z * 10000) / 10000;
+                        float x1 = round(in.point.x * accuracy) / accuracy;
+                        float y1 = round(in.point.y * accuracy) / accuracy;
+                        float z1 = round(in.point.z * accuracy) / accuracy;
+
+                        float x2 = round(li_in.point.x * accuracy) / accuracy;
+                        float y2 = round(li_in.point.y * accuracy) / accuracy;
+                        float z2 = round(li_in.point.z * accuracy) / accuracy;
 
                         if (x1 == x2 && y1 == y2 && z1 == z2) {
-                            Vect3f L = o[i].brighness(l[i].illumination(li_in.point, li_in.N));
+                            Vect3f L = o[i].brighness(l[k].illumination(li_in.point, li_in.N));
                             m[i][j] += Vect3d(L.x, L.y, L.z);
                         }
                     }
