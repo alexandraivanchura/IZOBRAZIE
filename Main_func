@@ -1,0 +1,18 @@
+int main()
+  {
+  mem_init(NULL, NULL, "temp.mem");
+  ev_init();
+  col_init();
+
+  render r = render();
+  scene s = scene();
+  r.rendering(s);
+
+  //getchar();
+
+  col_term();
+  ev_term();
+  mem_close();
+
+  return 0;
+}
