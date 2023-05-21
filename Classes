@@ -150,7 +150,7 @@ public:
         RTCGeometry sphere1 = CreateSphere(device, Point3f(1, -5, 10), 5, 5, Matrix43f(1, 1, 1));
         rtcAttachGeometry(sc, sphere1);
 
-        RTCGeometry sphere2 = CreateSphere(device, Point3f(1, 5, 10), 5, 5, Matrix43f(1, 1, 1));
+        RTCGeometry sphere2 = CreateSphere(device, Point3f(1, -2, 3), 2, 5, Matrix43f(1, 1, 1));
         rtcAttachGeometry(sc, sphere2);
 
         rtcCommitScene(sc);
@@ -215,7 +215,7 @@ public:
 
         Point3f result_point = light.start + light.dir * rayhit.ray.tfar;
         
-        if (accur_equal(p, result_point, 1000))
+        if (accur_equal(p, result_point, 100))
             return 1;
         else
             return 0;
@@ -225,20 +225,23 @@ public:
 class scene { // класс-чемодан сцены
 public:
     geometry geom;
-    int light_n = 3;
-    light lights[3];
+    int light_n = 2;
+    light* lights = new light[light_n];
 
     int op_n = 1;
-    optprop op[1];
+    optprop* op = new optprop[op_n];
     camera cam;
 
 public:
     scene() {
         geom = geometry();
 
-        lights[0] = light(1, 10, 10, 750, 2550, 930);
-        lights[1] = light(1, -10, 10, 1840, 810, 2220);
-        lights[2] = light(-30, 0, 0, 10000, 10000, 10000);
+        lights[0] = light(3, 0, -7, 12800, 30000, 10000);
+        lights[1] = light(-10, 0, -7, 30000, 12800, 10000);
+        //lights[1] = light(1, -10, 10, 1840, 810, 2220);
+        /*lights[0] = light(1, 10, 10, 10000, 10000, 10000);
+        lights[1] = light(1, -10, 10, 10000, 10000, 10000);*/
+        //lights[2] = light(-30, 0, 0, 10000, 10000, 10000);
 
         op[0] = optprop(255, 255, 255);
         //op[0] = optprop(27, 50, 141);
@@ -260,6 +263,8 @@ public:
 
         TMatrix<Vect3f> m = TMatrix<Vect3f>(c.resolutionX, c.resolutionY);
 
+        int n = sc.light_n; // количество источников света
+
         for (int i = 0; i < c.resolutionX; i++) {
             for (int j = 0; j < c.resolutionY; j++) {
                 m[i][j] = Vect3f(0);
@@ -269,8 +274,6 @@ public:
                 point_and_normal in = g.Intersection(r); // ещем пересечение глаза с геометрией
 
                 if (in.N != Vect3f(0)) { // если нашли пересечение
-                    int n = sc.light_n; // количество источников света
-                    
                     for (int k = 0; k < n; k++) {
                         ray li = ray(l[k].position, in.point); // луч от источника света до точки на объекте
 
