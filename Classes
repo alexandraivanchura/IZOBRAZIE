@@ -1,4 +1,4 @@
-///classes: light, camera(+экран), ray, opt prop, geometry -> scene -> render
+//classes: light, camera(+экран), ray, opt prop, geometry -> scene -> render
 
 class ray { // класс луча
 public:
@@ -33,11 +33,14 @@ public:
     Vect3f illumination(Point3f p, Vect3f N) { // функция освещенности
         ray r = ray(position, p);
         float d = r.tfar;
-        float cos = r.dir.x * N.x + r.dir.y * N.y + r.dir.z * N.z; // нормаль и вектор луча единичные
-        if (cos < 0 || d == 0)
+        float cos = -(r.dir.x * N.x + r.dir.y * N.y + r.dir.z * N.z); // нормаль и вектор луча единичные
+        if (d == 0)
             return 0;
         else {
+            if (cos < 0)
+                cos = -cos;
             Vect3f res = Intensity * cos / d / d;
+            //printf("%f, %f, %f\n", res.x, res.y, res.z);
             return res;
         }
     }
@@ -78,8 +81,8 @@ public:
         resolutionX = 256;
         resolutionY = 256;
 
-        dx = (2 * -topleft.x / 256, 0, 0);
-        dy = (0, -2 * topleft.y / 256, 0);
+        dx = Vect3f(2 * -topleft.x / 256, 0, 0);
+        dy = Vect3f(0, -2 * topleft.y / 256, 0);
     }
     camera(int resX, int resY, float angle) {
         position = Point3f(0, 0, -10);
@@ -94,14 +97,11 @@ public:
         dx = Vect3f(i, 0, 0);
         dy = Vect3f(0, j, 0);
 
-        printf("%f, %f, %f\n", dx.x, dx.y, dx.z);
-        printf("%f, %f, %f\n", dy.x, dy.y, dy.z);
-
-        //Matrix43f tm(1); // Поворот экрана вокруг оси Y
-        //tm.RotationY(angle * PI / 180);
-        //tm.PointTransform(topleft);
-        //tm.VectorTransform(dx);
-        //tm.VectorTransform(dy);
+        Matrix43f tm(1); // Поворот экрана вокруг оси Y
+        tm.RotationY(angle * PI / 180);
+        tm.PointTransform(topleft);
+        tm.VectorTransform(dx);
+        tm.VectorTransform(dy);
     }
 
     ray getRay(int x, int y) {
@@ -195,8 +195,8 @@ public:
     scene() {
         geom = geometry();
 
-        lights[0] = light(15, 10, 100, 75, 255, 93);
-        lights[1] = light(-15, 10, 100, 184, 81, 222);
+        lights[0] = light(15, 10, 10, 750, 2550, 930);
+        lights[1] = light(-15, 10, 10, 1840, 810, 2220);
 
         op[0] = optprop(27, 50, 141);
         op[1] = optprop(172, 143, 93);
@@ -204,22 +204,6 @@ public:
         cam = camera(1000, 1000, 0);
     }
 };
-
-//void print_img(TMatrix<Vect3f> m, float dx, float dy) {
-//    HWND hwnd = GetConsoleWindow();
-//    HDC hdc = GetDC(hwnd);
-//    for (int i = 0; i < dx; i++)
-//        for (int j = 0; j < dy; j++) {
-//            int x = m[i][j].x;
-//            int y = m[i][j].y;
-//            int z = m[i][j].z;
-//
-//            unsigned long createRGB = ((x & 0xff) << 16) + ((y & 0xff) << 8) + (z & 0xff);
-//            COLORREF color = RGB;
-//
-//            SetPixel(hdc, i, j, color);
-//        }
-//}
 
 class render {
 public:
@@ -243,6 +227,7 @@ public:
 
                 if (in.N != Vect3f(0)) {
                     int n = sc.light_n;
+                    
                     for (int k = 0; k < n; k++) {
                         ray li = ray(l[k].position, in.point);
                         point_and_normal li_in = g.Intersection(li);
@@ -258,7 +243,7 @@ public:
                         float z2 = round(li_in.point.z * accuracy) / accuracy;
 
                         if (x1 == x2 && y1 == y2 && z1 == z2) {
-                            Vect3f L = o[i].brighness(l[k].illumination(li_in.point, li_in.N));
+                            Vect3f L = o[0].brighness(l[k].illumination(li_in.point, li_in.N));
                             m[i][j] += Vect3d(L.x, L.y, L.z);
                         }
                     }
