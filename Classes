@@ -85,7 +85,7 @@ public:
         dx = Vect3f(2 * -topleft.x / 256, 0, 0);
         dy = Vect3f(0, -2 * topleft.y / 256, 0);
     }
-    camera(int resX, int resY, float angle) {
+    camera(int resX, int resY, float anglex) {
         position = Point3f(0, 0, -10);
         topleft = Point3f(-10, 10, 0);
 
@@ -98,15 +98,21 @@ public:
         dx = Vect3f(i, 0, 0);
         dy = Vect3f(0, j, 0);
 
-        Matrix43f tm(1); // Поворот экрана вокруг оси Y
-        tm.RotationY(angle * PI / 180);
+        Matrix43f tm(1); // Поворот экрана вокруг осей
+        tm.RotationX(anglex * PI / 180);
+        /*tm.RotationY(angley * PI / 180);
+        tm.RotationZ(anglez * PI / 180);*/
         tm.PointTransform(topleft);
+        tm.PointTransform(position);
         tm.VectorTransform(dx);
         tm.VectorTransform(dy);
     }
 
     ray getRay(int x, int y) {
-        Point3f screen_point = topleft + x * dx + y * dy; // Позиция на экране (в углу пока без рандома)
+        int val = 1000;
+        Vect3f randx = dx * (rand() % val / val);
+        Vect3f randy = dy * (rand() % val / val);
+        Point3f screen_point = topleft + x * dx + randx + y * dy + randy; // Позиция на экране (в углу пока без рандома)
         return ray(position, screen_point);
     }
 };
@@ -247,7 +253,7 @@ public:
         //op[0] = optprop(27, 50, 141);
         //op[1] = optprop(172, 143, 93);
 
-        cam = camera(1000, 1000, 0);
+        cam = camera(1000, 1000, 45);
     }
 };
 
@@ -278,18 +284,14 @@ public:
                         ray li = ray(l[k].position, in.point); // луч от источника света до точки на объекте
 
                         if (g.is_not_shadow(in.point, li)) {
-                            Vect3f L = o[0].brighness(l[k].illumination(in.point, in.N));
+                            Vect3f L = o[0].brighness(l[k].illumination(in.point, in.N)); // яркость в точке от этого источника
                             m[i][j] += L;
-                            //m[i][j] += Vect3d(L.x, L.y, L.z);
                         }
                     }
                 }
             }
         }
-
-        //print_img(m, c.resolutionX, c.resolutionY);
-
-        PathStr ps = PathStr("nit.nit");
+        PathStr ps = PathStr("nit.nit"); // создание файла
         WriteNITFile(ps, m, 0);
     }
 };
