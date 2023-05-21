@@ -2,9 +2,9 @@
 
 class ray { // класс луча
 public:
-    Point3f start;
-    Vect3f dir;
-    float tfar;
+    Point3f start; // точка начала
+    Vect3f dir; // направление
+    float tfar; // длина луча
 
 public:
     ray(Point3f st, Point3f fin) {
@@ -18,8 +18,8 @@ public:
 
 class light { // класс источника света
 public:
-    Point3f position;
-    Vect3f Intensity;
+    Point3f position; // положение 
+    Vect3f Intensity; // интенсивность по трем каналам
 
 public:
     light() {
@@ -31,16 +31,17 @@ public:
         Intensity = Vect3f(r, g, b);
     }
     Vect3f illumination(Point3f p, Vect3f N) { // функция освещенности
-        ray r = ray(position, p);
-        float d = r.tfar;
-        float cos = -(r.dir.x * N.x + r.dir.y * N.y + r.dir.z * N.z); // нормаль и вектор луча единичные
+        ray r = ray(p, position); //луч от точки на объекте до источника света
+        float d = r.tfar; //расстояние до источника света
+        float cos = r.dir.x * N.x + r.dir.y * N.y + r.dir.z * N.z; // нормаль и вектор луча единичные
         if (d == 0)
             return 0;
         else {
+            /*if (cos < 0)
+                return Vect3f(0);*/
             if (cos < 0)
                 cos = -cos;
             Vect3f res = Intensity * cos / d / d;
-            //printf("%f, %f, %f\n", res.x, res.y, res.z);
             return res;
         }
     }
@@ -115,9 +116,23 @@ struct point_and_normal {
     Vect3f N;
 };
 
+bool accur_equal(Point3f a, Point3f b, int accuracy) {
+    float x1 = round(a.x * accuracy) / accuracy;
+    float y1 = round(a.y * accuracy) / accuracy;
+    float z1 = round(a.z * accuracy) / accuracy;
+
+    float x2 = round(b.x * accuracy) / accuracy;
+    float y2 = round(b.y * accuracy) / accuracy;
+    float z2 = round(b.z * accuracy) / accuracy;
+
+    if (x1 == x2 && y1 == y2 && z1 == z2)
+        return 1;
+
+    return 0;
+}
+
 class geometry {
 public:
-    RTCGeometry g[2];
     RTCScene sc;
 
 public:
@@ -132,14 +147,11 @@ public:
 
         sc = rtcNewScene(device);
 
-        RTCGeometry box = CreateBoxOmit(device, Point3f(-3, 0, 10), Vect3f(5, 5, 5), OMIT_X_POS, Matrix43f(1, 1, 1));
-        rtcAttachGeometry(sc, box);
+        RTCGeometry sphere1 = CreateSphere(device, Point3f(1, -5, 10), 5, 5, Matrix43f(1, 1, 1));
+        rtcAttachGeometry(sc, sphere1);
 
-        RTCGeometry sphere = CreateSphere(device, Point3f(7, 0, 10), 5, 5, Matrix43f(1, 1, 1));
-        rtcAttachGeometry(sc, sphere);
-
-        g[0] = box;
-        g[1] = sphere;
+        RTCGeometry sphere2 = CreateSphere(device, Point3f(1, 5, 10), 5, 5, Matrix43f(1, 1, 1));
+        rtcAttachGeometry(sc, sphere2);
 
         rtcCommitScene(sc);
     }
@@ -171,6 +183,7 @@ public:
         if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
             point = r.start + r.dir * rayhit.ray.tfar;
             N = Vect3f(rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z);
+            N = N.Normalize();
         }
         else {
             point = Point3f(0);
@@ -179,27 +192,57 @@ public:
 
         return point_and_normal{ point, N };
     }
+
+    bool is_not_shadow(Point3f p, ray light) { // нет ли тени от этого источника света в этой точке
+        struct RTCRayHit rayhit;
+        rayhit.ray.org_x = light.start.x;
+        rayhit.ray.org_y = light.start.y;
+        rayhit.ray.org_z = light.start.z;
+        rayhit.ray.dir_x = light.dir.x;
+        rayhit.ray.dir_y = light.dir.y;
+        rayhit.ray.dir_z = light.dir.z;
+        rayhit.ray.tnear = 0;
+        rayhit.ray.tfar = (float)MathF::MAX_VALUE;
+        rayhit.ray.mask = 0;
+        rayhit.ray.flags = 0;
+        rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+        rayhit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
+
+        struct RTCIntersectContext context;
+        rtcInitIntersectContext(&context);
+
+        rtcIntersect1(sc, &context, &rayhit);
+
+        Point3f result_point = light.start + light.dir * rayhit.ray.tfar;
+        
+        if (accur_equal(p, result_point, 1000))
+            return 1;
+        else
+            return 0;
+    }
 };
 
 class scene { // класс-чемодан сцены
 public:
     geometry geom;
-    int light_n = 2;
-    light lights[2];
+    int light_n = 3;
+    light lights[3];
 
-    int op_n = 2;
-    optprop op[2];
+    int op_n = 1;
+    optprop op[1];
     camera cam;
 
 public:
     scene() {
         geom = geometry();
 
-        lights[0] = light(15, 10, 10, 750, 2550, 930);
-        lights[1] = light(-15, 10, 10, 1840, 810, 2220);
+        lights[0] = light(1, 10, 10, 750, 2550, 930);
+        lights[1] = light(1, -10, 10, 1840, 810, 2220);
+        lights[2] = light(-30, 0, 0, 10000, 10000, 10000);
 
-        op[0] = optprop(27, 50, 141);
-        op[1] = optprop(172, 143, 93);
+        op[0] = optprop(255, 255, 255);
+        //op[0] = optprop(27, 50, 141);
+        //op[1] = optprop(172, 143, 93);
 
         cam = camera(1000, 1000, 0);
     }
@@ -215,36 +258,26 @@ public:
         optprop* o = sc.op;
         camera c = sc.cam;
 
-        TMatrix<Vect3d> m = TMatrix<Vect3d>(c.resolutionX, c.resolutionY);
+        TMatrix<Vect3f> m = TMatrix<Vect3f>(c.resolutionX, c.resolutionY);
 
         for (int i = 0; i < c.resolutionX; i++) {
             for (int j = 0; j < c.resolutionY; j++) {
-                m[i][j] = Vect3d(0);
+                m[i][j] = Vect3f(0);
 
                 ray r = c.getRay(i, j);
 
-                point_and_normal in = g.Intersection(r);
+                point_and_normal in = g.Intersection(r); // ещем пересечение глаза с геометрией
 
-                if (in.N != Vect3f(0)) {
-                    int n = sc.light_n;
+                if (in.N != Vect3f(0)) { // если нашли пересечение
+                    int n = sc.light_n; // количество источников света
                     
                     for (int k = 0; k < n; k++) {
-                        ray li = ray(l[k].position, in.point);
-                        point_and_normal li_in = g.Intersection(li);
+                        ray li = ray(l[k].position, in.point); // луч от источника света до точки на объекте
 
-                        int accuracy = 100;
-
-                        float x1 = round(in.point.x * accuracy) / accuracy;
-                        float y1 = round(in.point.y * accuracy) / accuracy;
-                        float z1 = round(in.point.z * accuracy) / accuracy;
-
-                        float x2 = round(li_in.point.x * accuracy) / accuracy;
-                        float y2 = round(li_in.point.y * accuracy) / accuracy;
-                        float z2 = round(li_in.point.z * accuracy) / accuracy;
-
-                        if (x1 == x2 && y1 == y2 && z1 == z2) {
-                            Vect3f L = o[0].brighness(l[k].illumination(li_in.point, li_in.N));
-                            m[i][j] += Vect3d(L.x, L.y, L.z);
+                        if (g.is_not_shadow(in.point, li)) {
+                            Vect3f L = o[0].brighness(l[k].illumination(in.point, in.N));
+                            m[i][j] += L;
+                            //m[i][j] += Vect3d(L.x, L.y, L.z);
                         }
                     }
                 }
