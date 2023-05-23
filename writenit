@@ -325,11 +325,11 @@ RTCGeometry CreateBox(RTCDevice device, Point3f p, Vect3f size, Matrix43f tr)
 
         indices[i++] = 7;
         indices[i++] = 2;
-        indices[i++] = 1;
+        indices[i++] = 1;//
 
         indices[i++] = 1;
         indices[i++] = 6;
-        indices[i++] = 7;
+        indices[i++] = 7;//
 
         indices[i++] = 0;
         indices[i++] = 5;
@@ -337,7 +337,7 @@ RTCGeometry CreateBox(RTCDevice device, Point3f p, Vect3f size, Matrix43f tr)
 
         indices[i++] = 6;
         indices[i++] = 1;
-        indices[i++] = 1;
+        indices[i++] = 0;
     }
 
     rtcCommitGeometry(geom);
@@ -781,6 +781,12 @@ public:
 
         RTCGeometry sphere2 = CreateSphere(device, Point3f(1, -2, 3), 2, 5, Matrix43f(1, 1, 1));
         rtcAttachGeometry(sc, sphere2);
+        
+        Matrix43f tr = Matrix43f(1, 1, 1);
+        tr.RotationX(45 * PI / 180);
+
+        RTCGeometry box = CreateBox(device, Point3f(-7, 20, 15), Vect3f(20, 1, 20), tr);
+        rtcAttachGeometry(sc, box);
 
         rtcCommitScene(sc);
     }
@@ -858,7 +864,7 @@ public:
     int light_n = 2;
     light* lights = new light[light_n];
 
-    int op_n = 2;
+    int op_n = 3;
     optprop* op = new optprop[op_n];
     camera cam;
 
@@ -876,11 +882,12 @@ public:
         //lights[2] = light(-30, 0, 0, 10000, 10000, 10000);
 
         op[0] = optprop(255, 100, 100);
-        op[1] = optprop(100, 255, 100);
+        op[1] = optprop(100, 100, 255);
+        op[2] = optprop(255, 255, 255);
         //op[0] = optprop(27, 50, 141);
         //op[1] = optprop(172, 143, 93);
 
-        cam = camera(1000, 1000, 45);
+        cam = camera(1000, 1000, 0);
     }
 };
 
