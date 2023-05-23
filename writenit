@@ -629,7 +629,7 @@ public:
     float tfar; // длина луча
 
 public:
-    ray(Point3f st, Point3f fin) {
+    ray(Point3f st, Point3f fin) { // создание луча по точкам начала и конца
         start = st;
         dir = Vect3f(fin.x - st.x, fin.y - st.y, fin.z - st.z);
         tfar = dir.Length();
@@ -670,16 +670,16 @@ public:
 };
 
 class optprop { // класс оптического свойства
-    Vect3f rgb;
+    Vect3f rgb; // цвет поверхности
 
 public:
     optprop() {
         rgb = Vect3f(255, 255, 255);
-        rgb = rgb.Normalize();
+        rgb = rgb.Normalize(); // коэффициент не больше единицы
     }
     optprop(float r, float g, float b) {
         rgb = Vect3f(r, g, b);
-        rgb = rgb.Length() == 0 ? rgb : rgb.Normalize();
+        rgb = rgb.Length() == 0 ? rgb : rgb.Normalize(); // коэффициент не больше единицы
     }
 
     Vect3f brighness(Vect3f E) { // функция яркости
@@ -730,21 +730,22 @@ public:
         tm.VectorTransform(dy);
     }
 
-    ray getRay(int x, int y) {
+    ray getRay(int x, int y) { // луч проходящий через глаз и xy-пиксель экрана
         int val = 1000;
         Vect3f randx = dx * (rand() % val / val);
         Vect3f randy = dy * (rand() % val / val);
-        Point3f screen_point = topleft + x * dx + randx + y * dy + randy; // Позиция на экране (в углу пока без рандома)
+        Point3f screen_point = topleft + x * dx + randx + y * dy + randy; // Позиция на экране
         return ray(position, screen_point);
     }
 };
 
-struct point_and_normal {
+struct point_and_normal { // структура с точкой пересечения, нормалью к поверхности и id объекта
     Point3f point;
     Vect3f N;
+    int id;
 };
 
-bool accur_equal(Point3f a, Point3f b, int accuracy) {
+bool accur_equal(Point3f a, Point3f b, int accuracy) { // сравнение точек с точностью до accuracy
     float x1 = round(a.x * accuracy) / accuracy;
     float y1 = round(a.y * accuracy) / accuracy;
     float z1 = round(a.z * accuracy) / accuracy;
@@ -759,12 +760,12 @@ bool accur_equal(Point3f a, Point3f b, int accuracy) {
     return 0;
 }
 
-class geometry {
+class geometry { // класс геометрии
 public:
-    RTCScene sc;
+    RTCScene sc; // embree сцена
 
 public:
-    geometry() {
+    geometry() { // создание геометрии
         RTCDevice device = rtcNewDevice(NULL);
         if (device == NULL)
         {
@@ -784,7 +785,7 @@ public:
         rtcCommitScene(sc);
     }
 
-    point_and_normal Intersection(ray r) {
+    point_and_normal Intersection(ray r) { // поиск пересечения луча с геометрией
         struct RTCRayHit rayhit;
         rayhit.ray.org_x = r.start.x;
         rayhit.ray.org_y = r.start.y;
@@ -805,20 +806,21 @@ public:
         rtcIntersect1(sc, &context, &rayhit);
         Point3f point;
         Vect3f N;
-
-        //printf("\n%i", rayhit.hit.geomID);
+        int id = -1;
 
         if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
             point = r.start + r.dir * rayhit.ray.tfar;
             N = Vect3f(rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z);
             N = N.Normalize();
+            id = rayhit.hit.geomID;
         }
         else {
             point = Point3f(0);
             N = Vect3f(0);
+            id = -1;
         }
 
-        return point_and_normal{ point, N };
+        return point_and_normal{ point, N, id };
     }
 
     bool is_not_shadow(Point3f p, ray light) { // нет ли тени от этого источника света в этой точке
@@ -856,7 +858,7 @@ public:
     int light_n = 2;
     light* lights = new light[light_n];
 
-    int op_n = 1;
+    int op_n = 2;
     optprop* op = new optprop[op_n];
     camera cam;
 
@@ -865,13 +867,16 @@ public:
         geom = geometry();
 
         lights[0] = light(3, 0, -7, 12800, 30000, 10000);
-        lights[1] = light(-10, 0, -7, 30000, 12800, 10000);
+        lights[1] = light(-10, 0, -7, 10000, 12800, 30000);
+        /*lights[0] = light(3, 0, -7, 30000, 30000, 30000);
+        lights[1] = light(-10, 0, -7, 10000, 10000, 10000);*/
         //lights[1] = light(1, -10, 10, 1840, 810, 2220);
         /*lights[0] = light(1, 10, 10, 10000, 10000, 10000);
         lights[1] = light(1, -10, 10, 10000, 10000, 10000);*/
         //lights[2] = light(-30, 0, 0, 10000, 10000, 10000);
 
-        op[0] = optprop(255, 255, 255);
+        op[0] = optprop(255, 100, 100);
+        op[1] = optprop(100, 255, 100);
         //op[0] = optprop(27, 50, 141);
         //op[1] = optprop(172, 143, 93);
 
@@ -879,17 +884,17 @@ public:
     }
 };
 
-class render {
+class render { // класс рендера
 public:
     render() {
     }
-    void rendering(scene sc) {
+    void rendering(scene sc) { // просчет картинки
         geometry g = sc.geom;
         light* l = sc.lights;
         optprop* o = sc.op;
         camera c = sc.cam;
 
-        TMatrix<Vect3f> m = TMatrix<Vect3f>(c.resolutionX, c.resolutionY);
+        TMatrix<Vect3f> m = TMatrix<Vect3f>(c.resolutionX, c.resolutionY); // картинка
 
         int n = sc.light_n; // количество источников света
 
@@ -897,16 +902,16 @@ public:
             for (int j = 0; j < c.resolutionY; j++) {
                 m[i][j] = Vect3f(0);
 
-                ray r = c.getRay(i, j);
+                ray r = c.getRay(i, j); // луч от глаза через xy-пиксель
 
                 point_and_normal in = g.Intersection(r); // ещем пересечение глаза с геометрией
 
-                if (in.N != Vect3f(0)) { // если нашли пересечение
+                if (in.id != -1) { // если нашли пересечение
                     for (int k = 0; k < n; k++) {
                         ray li = ray(l[k].position, in.point); // луч от источника света до точки на объекте
 
                         if (g.is_not_shadow(in.point, li)) {
-                            Vect3f L = o[0].brighness(l[k].illumination(in.point, in.N)); // яркость в точке от этого источника
+                            Vect3f L = o[in.id].brighness(l[k].illumination(in.point, in.N)); // яркость в точке от этого источника
                             m[i][j] += L;
                         }
                     }
